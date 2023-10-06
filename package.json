@@ -1,0 +1,16 @@
+{
+  "name": "automate-copy-to-browser",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "BenIsMe",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js ../zalo-order/*.xlsx"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "excel4node": "^1.8.2",
+    "puppeteer": "^21.3.6",
+    "xlsx": "^0.18.5"
+  }
+}
