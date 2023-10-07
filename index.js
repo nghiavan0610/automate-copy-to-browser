@@ -27,43 +27,66 @@ const orderIds = workbook_response.map(order => order['Order Id']);
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     
-    await page.goto(process.env.URL);
+    await page.goto(process.env.LOGIN_URL);
 
-    await page.type('#Email', process.env.EMAIL);
-    await page.type('#Password', process.env.PASSWORD);
-    await page.click('button[type="submit"]');
+    await page.evaluate(() => {
+        const div = document.querySelector('div'); 
+        if(div.innerText.includes("NHÂN VIÊN")) {
+          div.click();
+        } 
+    });
 
-    await page.waitForNavigation();
+    await page.waitForSelector('#username');
 
-    const invalidOrderIds = [];
+    await page.type('#username', process.env.USER);
+    await page.type('#password', process.env.PASSWORD);
+    await page.click('input[type="submit"]');
+
+    // await page.waitForNavigation();
+
+    // navigate to translog
+    await page.waitForSelector('#transaction-menu');
+    await page.click('a[href="/translog"]');
+
+    const validOrderIds = [];
   
     for(const orderId of orderIds) {
-
+        console.log('orderId: ', orderId);
         try {
-            await page.waitForSelector('#OrderId');
-            await page.type('#OrderId', orderId);
+            await page.waitForSelector('#txtTransID');
+            await page.type('#txtTransID', orderId);
 
-            await page.waitForSelector('#OrderDetailsRequestViewModel_GetOrderDetails');
-            await page.click('button[id="OrderDetailsRequestViewModel_GetOrderDetails"]');
-    
-            // await page.waitForSelector('#alohaOrderStatus', {visible: true});
-            await page.waitForFunction(() => {
-                return document.getElementById('alohaOrderStatus').innerText; 
-            }, {timeout: 10000});
+            await page.waitForSelector('#btnSearch');
+            await page.click('button[id="btnSearch"]');
 
-            const statusText = await page.evaluate(() => {
-                return document.getElementById('alohaOrderStatus').innerText; 
+            await page.waitForTimeout(5000);
+
+            const zaloPayId = await page.evaluate(() => {
+                return document.querySelector('tbody tr td:nth-child(4)').innerText;
             });
 
-            console.log(statusText);
+            console.log(`zaloPayId: ${zaloPayId} - orderId: ${orderId}`);
+              
+            if(zaloPayId === orderId) {
+                const status = await page.evaluate(() => {
+                    return document.querySelector('tbody tr td:nth-child(10)').innerText; 
+                });
+            
+                if (status.includes("Thành công")) {
+                    validOrderIds.push(orderId);
+                }
+            } else {
+                console.log(`Order ID ${orderId} not found`);
+                continue;
+            }
         } catch (error) {
             console.log(`Order ID ${orderId} invalid`);
             console.log('error: ' + error);
-            invalidOrderIds.push(orderId);
+            validOrderIds.push(orderId);
             continue;
         }
     }
-    await fs.writeFile(outPath, invalidOrderIds.join('\n'));
+    await fs.writeFile(outPath, validOrderIds.join('\n'));
 
     await browser.close();
   
